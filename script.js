@@ -33,6 +33,21 @@ function init() {
     activeTheme = 'modern'; // Default
     updateThemeClasses();
 
+    if (!window.POKEMON_DB) {
+        console.warn("POKEMON_DB not found in init. waiting...");
+        // Fallback: check again after 1s
+        setTimeout(() => {
+            if (!window.POKEMON_DB) {
+                console.error("POKEMON_DB failed to load.");
+                // Optional: Show visual warning in lobby 
+                const lobbyTitle = document.querySelector('.lobby-title');
+                if (lobbyTitle) lobbyTitle.innerHTML += '<br><span style="font-size:0.5em;color:red">(Error: BD no cargada)</span>';
+            } else {
+                console.log("POKEMON_DB loaded late.");
+            }
+        }, 1000);
+    }
+
     // Event Listeners for Enters (Robust Fix)
     const handleEnter = (e) => {
         if (e.key === 'Enter' || e.keyCode === 13) {
@@ -51,6 +66,7 @@ let selectedChoiceType = null;
 let challengeQueue = [];
 
 function showTypeSelection() {
+    console.log("Opening Type Selection Screen...");
     themes.lobby.classList.add('hidden');
     themes.selection.classList.remove('hidden');
 
@@ -210,6 +226,12 @@ function fetchNextInQueue() {
     }
 
     const challenge = challengeQueue.shift(); // Get next
+
+    if (!window.POKEMON_DB) {
+        alert("Error: Base de datos de Pokémon no cargada. Revisa tu conexión o los archivos del repositorio.");
+        console.error("POKEMON_DB is undefined");
+        return;
+    }
 
     try {
         // Filter DB for candidates matching the challenge type(s)
