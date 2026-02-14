@@ -1,8 +1,8 @@
-# Pokemon Types Game - Ultimate
+# Pokemon Types Game - Beta 
 
 Un juego interactivo para adivinar los tipos de Pokémon, con diseños modernos y retro.
 
-## 🎮 Características
+## Características
 
 - **Dos Temas Visuales**:
   - **Moderno**: Diseño limpio, glassmorphism y animaciones suaves.
@@ -17,13 +17,13 @@ Un juego interactivo para adivinar los tipos de Pokémon, con diseños modernos 
 - **Progreso Seguro**:
   - Botón de "Home" con confirmación de seguridad para evitar perder rachas activas.
 
-## 🚀 Cómo jugar
+## Cómo jugar
 
 1. Clona este repositorio o descarga los archivos.
 2. Abre el archivo `index.html` en tu navegador web favorito.
 3. ¡Empieza a adivinar!
 
-## 🛠️ Tecnologías
+## Tecnologías
 
 - **HTML5**
 - **CSS3** (Variables CSS, Flexbox, Grid, Animaciones)
@@ -31,10 +31,5 @@ Un juego interactivo para adivinar los tipos de Pokémon, con diseños modernos 
 - **PokeAPI** (para datos de Pokémon en tiempo real)
 - **Canvas Confetti** (efectos visuales)
 
-## 📦 Despliegue en GitHub Pages
 
-Este proyecto es 100% compatible con GitHub Pages.
-1. Sube los archivos a un repositorio de GitHub.
-2. Ve a **Settings** > **Pages**.
-3. Selecciona la rama `main` y guarda.
-4. ¡Tu juego estará online en segundos!
+
