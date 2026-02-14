@@ -43,11 +43,11 @@
                     <p>Adivina el tipo de Pokémon aleatorios sin repetir combinaciones.</p>
                 </div>
 
-                <!-- Slot 2: Locked -->
-                <div class="mode-card locked-mode">
-                    <div class="mode-icon">🔒</div>
-                    <h3>Próximamente</h3>
-                    <p>Nuevo modo en desarrollo...</p>
+                <!-- Slot 2: Choice Mode (Unlocked) -->
+                <div class="mode-card active-mode" onclick="showTypeSelection()">
+                    <div class="mode-icon">🎯</div>
+                    <h3>Modo Elección</h3>
+                    <p>Elige un tipo y completa todas sus combinaciones.</p>
                 </div>
 
                 <!-- Slot 3: Locked -->
@@ -63,6 +63,38 @@
                     <h3>Próximamente</h3>
                     <p>Nuevo modo en desarrollo...</p>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TYPE SELECTION SCREEN -->
+    <div id="typeSelectionScreen" class="theme-wrapper modern hidden">
+        <button class="home-btn" onclick="returnToLobby()">
+            <!-- Back Arrow SVG -->
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+        </button>
+        <div class="lobby-container">
+            <h1 class="lobby-title">Elige un Tipo</h1>
+            <div id="typeGrid" class="type-selection-grid">
+                <!-- JS will populate types here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- VICTORY SCREEN -->
+    <div id="victoryScreen" class="theme-wrapper modern hidden">
+        <div class="card victory-card">
+            <h1 class="victory-title">¡VICTORIA!</h1>
+            <p>Has completado el tipo <span id="victoryType"
+                    style="text-transform: capitalize; color: var(--success);"></span></p>
+            <div style="font-size: 3rem; margin: 20px;">🏆</div>
+            <div class="action-row">
+                <button class="main-btn" onclick="returnToLobby()">Menú Principal</button>
+                <button class="secondary-btn" onclick="showTypeSelection()">Elegir Otro</button>
             </div>
         </div>
     </div>
@@ -173,6 +205,8 @@
     </div>
 
     <!-- Script Logic -->
+    <!-- Local Data -->
+    <script src="pokemon_data.js"></script>
     <script src="script.js"></script>
 </body>
 

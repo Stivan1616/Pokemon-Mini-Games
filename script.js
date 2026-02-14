@@ -14,7 +14,9 @@ const MAX_RETRIES = 20;
 const themes = {
     modern: document.getElementById('modernUI'),
     retro: document.getElementById('retroUI'),
-    lobby: document.getElementById('lobbyScreen')
+    lobby: document.getElementById('lobbyScreen'),
+    selection: document.getElementById('typeSelectionScreen'),
+    victory: document.getElementById('victoryScreen')
 };
 const inputs = {
     modern: document.getElementById('inputModern'),
@@ -31,28 +33,97 @@ function init() {
     activeTheme = 'modern'; // Default
     updateThemeClasses();
 
-    // Event Listeners for Enters
-    inputs.modern.addEventListener('keydown', (e) => { if (e.key === 'Enter') checkAnswer(); });
-    inputs.retro.addEventListener('keydown', (e) => { if (e.key === 'Enter') checkAnswer(); });
+    // Event Listeners for Enters (Robust Fix)
+    const handleEnter = (e) => {
+        if (e.key === 'Enter' || e.keyCode === 13) {
+            e.preventDefault(); // Prevent default form submission if any
+            checkAnswer();
+        }
+    };
+
+    inputs.modern.addEventListener('keydown', handleEnter);
+    inputs.retro.addEventListener('keydown', handleEnter);
+}
+
+// Global State
+let gameMode = 'random'; // 'random' | 'choice'
+let selectedChoiceType = null;
+let challengeQueue = [];
+
+function showTypeSelection() {
+    themes.lobby.classList.add('hidden');
+    themes.selection.classList.remove('hidden');
+
+    // Ensure correct theme wrapper class
+    if (activeTheme === 'modern') {
+        themes.selection.classList.remove('retro');
+        themes.selection.classList.add('modern');
+    } else {
+        themes.selection.classList.remove('modern');
+        themes.selection.classList.add('retro');
+    }
+
+    renderTypeSelectionGrid();
+}
+
+function renderTypeSelectionGrid() {
+    const grid = document.getElementById('typeGrid');
+    grid.innerHTML = "";
+
+    Object.keys(typeColors).forEach(type => {
+        const btn = document.createElement('button');
+        btn.className = 'type-choice-btn';
+        btn.style.backgroundColor = typeColors[type];
+        btn.textContent = type;
+        btn.onclick = () => startChoiceMode(type);
+        grid.appendChild(btn);
+    });
+}
+
+function startChoiceMode(type) {
+    gameMode = 'choice';
+    selectedChoiceType = type;
+
+    // Build Queue: [Pure Type, Type+Normal, Type+Fire, ...]
+    challengeQueue = [];
+
+    // 1. Add Pure Type Challenge
+    challengeQueue.push({ base: type, secondary: null });
+
+    // 2. Add all duals
+    Object.keys(typeColors).forEach(secondary => {
+        if (secondary !== type) {
+            challengeQueue.push({ base: type, secondary: secondary });
+        }
+    });
+
+    themes.selection.classList.add('hidden');
+    startGame('choice');
 }
 
 function startGame(mode) {
     if (mode === 'random') {
+        gameMode = 'random';
         themes.lobby.classList.add('hidden');
-        if (activeTheme === 'modern') {
-            themes.modern.classList.remove('hidden');
-        } else {
-            themes.retro.classList.remove('hidden');
-        }
-
-        // Reset Game State
-        score = 0;
-        streak = 0;
-        lives = 5;
-        seenTypeSignatures.clear(); // Clear history on new game
-        fetchRandomSourcePokemon();
-        updateUI();
     }
+    // For 'choice', startChoiceMode already handled hidden classes for Lobby/Selection
+
+    if (activeTheme === 'modern') {
+        themes.modern.classList.remove('hidden');
+    } else {
+        themes.retro.classList.remove('hidden');
+    }
+
+    // Reset Game State
+    score = 0;
+    streak = 0;
+    lives = 5;
+    seenTypeSignatures.clear(); // Clear history on new game
+    fetchRandomSourcePokemon();
+    updateUI();
+
+    // Immediate focus
+    setTimeout(() => inputs[activeTheme].focus(), 50);
 }
 
 // --- THEME SWITCHING ---
@@ -112,7 +183,7 @@ function updateUI() {
     inputs.retro.value = activeVal;
 }
 
-// NEW LOGIC: Fetch Random Pokemon to ensure valid types combination
+// NEW LOGIC: Fetch Random Pokemon from LOCAL DB
 async function fetchRandomSourcePokemon() {
     if (lives <= 0) return;
 
@@ -124,33 +195,118 @@ async function fetchRandomSourcePokemon() {
     inputs.retro.value = "";
     setBtnLoading(true);
 
+    if (gameMode === 'choice') {
+        // No async needed really, but keeping structure
+        setTimeout(() => fetchNextInQueue(), 10);
+    } else {
+        setTimeout(() => fetchRandomUnique(), 10);
+    }
+}
+
+function fetchNextInQueue() {
+    if (challengeQueue.length === 0) {
+        showVictoryScreen();
+        return;
+    }
+
+    const challenge = challengeQueue.shift(); // Get next
+
+    try {
+        // Filter DB for candidates matching the challenge type(s)
+        const candidates = window.POKEMON_DB.filter(p => {
+            // We need to check if this pokemon FITS the challenge
+            // But the original logic was: "Fetch type X, then pick random from it"
+            // Here we can just pick a pokemon that has this type.
+            return p.types.includes(challenge.base);
+        });
+
+        if (candidates.length === 0) {
+            console.log("No candidates for base type:", challenge.base);
+            fetchNextInQueue();
+            return;
+        }
+
+        // Randomized check for valid pokemon in this type list
+        // In local DB we have the full object, so we can just check types directly.
+
+        let found = null;
+        // Shuffle and find match
+        // Optimization: Filter for exact match first
+
+        const matchingCandidates = candidates.filter(p => {
+            const types = p.types; // already sorted in DB
+            if (challenge.secondary === null) {
+                return types.length === 1 && types[0] === challenge.base;
+            } else {
+                return types.length === 2 && types.includes(challenge.base) && types.includes(challenge.secondary);
+            }
+        });
+
+        if (matchingCandidates.length > 0) {
+            const rnd = Math.floor(Math.random() * matchingCandidates.length);
+            found = matchingCandidates[rnd];
+            currentTypes = found.types; // Global set
+        }
+
+        if (found) {
+            renderTypes();
+            setBtnLoading(false);
+            inputs[activeTheme].focus();
+        } else {
+            console.log(`No pokemon found for ${challenge.base} + ${challenge.secondary} (in DB). Skipping.`);
+            fetchNextInQueue(); // Recursively try next
+        }
+
+    } catch (e) {
+        console.error(e);
+        fetchNextInQueue(); // Skip on error
+    }
+}
+
+function showVictoryScreen() {
+    themes.modern.classList.add('hidden');
+    themes.retro.classList.add('hidden');
+    themes.selection.classList.add('hidden');
+    themes.victory.classList.remove('hidden');
+
+    document.getElementById('victoryType').textContent = selectedChoiceType;
+
+    // Theme wrapper for victory
+    if (activeTheme === 'modern') {
+        themes.victory.classList.remove('retro');
+        themes.victory.classList.add('modern');
+    } else {
+        themes.victory.classList.remove('modern');
+        themes.victory.classList.add('retro');
+    }
+}
+
+function fetchRandomUnique() {
     // Retry logic for unique combinations
     let attempts = 0;
     let newTypes = [];
     let signature = "";
     let foundUnique = false;
 
+    if (!window.POKEMON_DB || window.POKEMON_DB.length === 0) {
+        console.error("DB Not loaded");
+        return;
+    }
+
     while (attempts < MAX_RETRIES && !foundUnique) {
         attempts++;
-        const randomId = Math.floor(Math.random() * 898) + 1; // Gen 1-8
+        const randomIdx = Math.floor(Math.random() * window.POKEMON_DB.length);
+        const p = window.POKEMON_DB[randomIdx];
 
-        try {
-            const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${randomId}`);
-            if (!res.ok) throw new Error("API Error");
-            const data = await res.json();
+        newTypes = p.types; // Already sorted
+        signature = newTypes.join(",");
 
-            newTypes = data.types.map(t => t.type.name).sort(); // Sort to ensure consistent signature
-            signature = newTypes.join(",");
-
-            if (!seenTypeSignatures.has(signature)) {
-                foundUnique = true;
-                seenTypeSignatures.add(signature);
-                currentTypes = newTypes; // update global
-            } else {
-                console.log(`Skipping duplicate combination: ${signature} (Attempt ${attempts})`);
-            }
-        } catch (err) {
-            console.error(err);
+        if (!seenTypeSignatures.has(signature)) {
+            foundUnique = true;
+            seenTypeSignatures.add(signature);
+            currentTypes = newTypes; // update global
+        } else {
+            // console.log(`Skipping duplicate combination: ${signature} (Attempt ${attempts})`);
         }
     }
 
@@ -321,12 +477,16 @@ async function checkAnswer() {
     const name = inputs[activeTheme].value.toLowerCase().trim();
     if (!name) return;
 
+    // Guard: Don't check if game hasn't loaded a Pokemon yet
+    if (currentTypes.length === 0) return;
+
     setBtnLoading(true);
 
     try {
-        const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${name}`);
+        // Local Lookup
+        const found = window.POKEMON_DB.find(p => p.name === name);
 
-        if (!res.ok) {
+        if (!found) {
             showFeedback("Pokémon no encontrado / Typo", "warning");
             inputs[activeTheme].classList.add('shake');
             setTimeout(() => inputs[activeTheme].classList.remove('shake'), 400);
@@ -334,8 +494,7 @@ async function checkAnswer() {
             return;
         }
 
-        const data = await res.json();
-        const pokeTypes = data.types.map(t => t.type.name);
+        const pokeTypes = found.types; // Already sorted
 
         const isCorrect = pokeTypes.length === currentTypes.length &&
             currentTypes.every(t => pokeTypes.includes(t)) &&
@@ -370,7 +529,7 @@ async function checkAnswer() {
 
     } catch (e) {
         console.error("CheckAnswer Error:", e);
-        showFeedback("Error de conexión", "error");
+        showFeedback("Error inesperado", "error");
         setBtnLoading(false);
     }
 }
@@ -435,11 +594,14 @@ function returnToLobby() {
     // Hide Game UIs
     themes.modern.classList.add('hidden');
     themes.retro.classList.add('hidden');
+    themes.selection.classList.add('hidden');
+    themes.victory.classList.add('hidden');
 
     // Show Lobby
     themes.lobby.classList.remove('hidden');
 
     // Reset State (so next game starts fresh)
+    gameMode = 'random';
     resetGame();
 }
 
